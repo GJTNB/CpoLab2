@@ -11,7 +11,7 @@
 
 
 ### Discription ###
-&emsp;&emsp;&emsp;&emsp;Rgb_light.py  <br>
+&emsp;&emsp;&emsp;&emsp;fsm.py  <br>
 &emsp;&emsp;&emsp;&emsp;Suppose the traffic lights at the intersection have red, yellow and green lights in direction a and direction B respectively.There are four states  <br>
 &emsp;&emsp;&emsp;&emsp;'S0': direction A's light is green and  direction B's light is red <br>
 &emsp;&emsp;&emsp;&emsp;'S1': direction A's light is yellow and  direction B's light is red <br>
