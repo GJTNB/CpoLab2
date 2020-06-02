@@ -1,18 +1,19 @@
 import graphviz
 
+RESULT=[]
 #Parameter check
-def param_check(*ty2):  
+def param_check(*ty2):
     def common(fun):
         def deal(*fun_x):
             ty=map(to_check_fun,ty2)
             if ty:
                 x_list=[a for a in fun_x]
                 x_list_it=iter(x_list)
-                result=[]
+                RESULT.clear()
                 for t_check in ty:
                     r=t_check(x_list_it.__next__())
-                    result.append(r)
-                print('param check result: ',result)
+                    RESULT.append(r)
+                # print('param check result: ',RESULT)
                     
             return fun(*fun_x)
         
@@ -21,6 +22,12 @@ def param_check(*ty2):
 
 def to_check_fun(t):
     return lambda x:isinstance(x,t)
+
+#Used for parameter type detection unit test
+@param_check(int,str,list)
+def param_check_test(a,b,c):
+    return RESULT
+
 
 
 class StateMachine:
@@ -50,8 +57,9 @@ class StateMachine:
         self.handlers[state] = function  #Set state transition for each state
         return function
 
+    #Use time to drive fsm
     @param_check(object,int)
-    def run(self, clk_n):
+    def run_by_time(self, clk_n):
         handler = self.handlers[self.start_state]
         current_state=self.start_state
         all_clk=clk_n
@@ -66,8 +74,24 @@ class StateMachine:
             current_state=next_state
             clk_n-=1
 
+    #Use events to drive fsm
+    @param_check(object,list)
+    def run_by_event(self, event_lst):
+        handler = self.handlers[self.start_state]
+        current_state=self.start_state
+        t=len(event_lst)
+        i=0
+        # Start processing from the Start state
+        while i<t:
+            next_state = handler(event_lst[i])     # Transform to a new state after a state transition function
+            self.transition_history.append((i+1,"Input event:"+str(event_lst[i]),current_state,next_state)) #Log the logic of fsm transition
+            handler = self.handlers[next_state]
+            current_state=next_state
+            i+=1
+
+
     @param_check(object)
-    def visualize(self,clk1,clk2):
+    def visualize_time(self,clk1,clk2):
         time=[clk1,clk2,clk1,clk2]
         res = []
         res.append("digraph G {")
@@ -87,6 +111,24 @@ class StateMachine:
 
         return "\n".join(res)
 
+    @param_check(object,list)
+    def visualize_event(self,event_list):
+        res = []
+        res.append("digraph G {")
+        res.append("  rankdir=LR;")
+        for v in self.state:
+            res.append("  {}[];".format(v))
+
+        for q in self.state:
+            handler = self.handlers[q]
+            for v in event_list:
+                    next_state=handler(v)
+                    res.append('  {} -> {}[label="{}"];'.format(q, next_state, v))
+        
+        res.append("}")
+
+        return "\n".join(res)
+
 if __name__ == "__main__":
     clk1 = 3
     clk2 = 1
@@ -101,16 +143,70 @@ if __name__ == "__main__":
     m.add_transition("s2",lambda clk: (clk+1,"s2") if clk<clk1 else (0,"s3"))
     m.add_transition("s3",lambda clk: (clk+1,"s3") if clk<clk2 else (0,"s0"))
 
-    m.run(18)
+    m.run_by_time(18)
     print(m.light_state_history)
     print(m.transition_history)
 
-    dot=m.visualize(clk1,clk2)
-    f= open('fsm.dot','w') 
+    dot=m.visualize_time(clk1,clk2)
+    f= open('fsm_rgb_light.dot','w') 
     f.write(dot)
     f.close()
 
-    with open("fsm.dot") as f:
+    with open("fsm_rgb_light.dot") as f:
         dot_graph = f.read()
     dot=graphviz.Source(dot_graph)
-    dot.view()
+    dot.view(filename='rgb_light_state_diagram')
+
+    # m = StateMachine()
+    # m.add_state("s0","Initial state")
+    # m.add_state("s1","Sequence 1 detected")
+    # m.add_state("s2","Sequence 11 detected")
+    # m.add_state("s3","Sequence 110 detected")
+    # m.add_state("s4","Sequence 1101 detected")
+    # m.set_start("s0")
+    # m.add_transition("s0",lambda a: "s1" if a==1 else "s0")
+    # m.add_transition("s1",lambda a: "s2" if a==1 else "s0")
+    # m.add_transition("s2",lambda a: "s3" if a==0 else "s2")
+    # m.add_transition("s3",lambda a: "s4" if a==1 else "s0")
+    # m.add_transition("s4",lambda a: "s1" if a==1 else "s0")
+
+    # m.run_by_event([1,0,1,0,1,1,0,1])
+    # print(m.transition_history)
+
+    # dot=m.visualize_event([0,1])
+    # f= open('fsm_sequence_detection.dot','w') 
+    # f.write(dot)
+    # f.close()
+
+    # with open("fsm_sequence_detection.dot") as f:
+    #     dot_graph = f.read()
+    # dot=graphviz.Source(dot_graph)
+    # dot.view(filename='fsm_sequence_detection_diagram')
+
+    # m = StateMachine()
+    # m.add_state("StateStopping","Initial state")
+    # m.add_state("StateGoingUp","Sequence 1 detected")
+    # m.add_state("StateGoingDown","Sequence 11 detected")
+    # m.add_state("StateOpened","Sequence 110 detected")
+    # m.add_state("StateWarning","Sequence 1101 detected")
+
+    # m.set_start("StateStopping")
+
+    # m.add_transition("StateStopping",lambda a: "StateOpened" if a=='EVENT_OPEN' else ('StateGoingUp' if a=='EVENT_UP' else ('StateGoingDown' if a=='EVENT_DOWN' else 'StateStopping' )))
+    # m.add_transition("StateOpened",lambda a: "StateStopping" if a=='EVENT_CLOSE' else ('StateWarning' if a=='EVENT_WARN' else 'StateOpened'))
+    # m.add_transition("StateGoingUp",lambda a: "StateStopping" if a=='EVENT_STOP' else 'StateGoingUp')
+    # m.add_transition("StateGoingDown",lambda a: "StateStopping" if a=='EVENT_STOP' else "StateGoingDown")
+    # m.add_transition("StateWarning",lambda a: "StateOpened" if a=='EVENT_DELWARN' else "StateWarning")
+
+    # m.run_by_event(['EVENT_OPEN','EVENT_CLOSE','EVENT_UP','EVENT_STOP','EVENT_OPEN','EVENT_WARN','EVENT_DELWARN'])
+    # print(m.transition_history)
+
+    # dot=m.visualize_event(['EVENT_UP','EVENT_DOWN','EVENT_STOP','EVENT_OPEN','EVENT_CLOSE','EVENT_WARN','EVENT_DELWARN'])
+    # f= open('fsm_elevator.dot','w') 
+    # f.write(dot)
+    # f.close()
+
+    # with open("fsm_elevator.dot") as f:
+    #     dot_graph = f.read()
+    # dot=graphviz.Source(dot_graph)
+    # dot.view(filename='fsm_elevator_diagram')
