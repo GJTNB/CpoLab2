@@ -1,34 +1,23 @@
 import graphviz
+from inspect import signature
+from functools import wraps
 
-RESULT=[]
-#Parameter check
-def param_check(*ty2):
-    def common(fun):
-        def deal(*fun_x):
-            ty=map(to_check_fun,ty2)
-            if ty:
-                x_list=[a for a in fun_x]
-                x_list_it=iter(x_list)
-                RESULT.clear()
-                for t_check in ty:
-                    r=t_check(x_list_it.__next__())
-                    RESULT.append(r)
-                # print('param check result: ',RESULT)
-                    
-            return fun(*fun_x)
-        
-        return deal                
-    return common
-
-def to_check_fun(t):
-    return lambda x:isinstance(x,t)
-
-#Used for parameter type detection unit test
-@param_check(int,str,list)
-def param_check_test(a,b,c):
-    return RESULT
-
-
+ 
+def param_check(*type_args, **type_kwargs):
+    def decorate(func):
+        sig = signature(func)
+        bound_types = sig.bind_partial(*type_args, **type_kwargs).arguments
+ 
+        @wraps(func)
+        def wrapper(*args, **kwargs):
+            bound_values = sig.bind(*args, **kwargs)
+            for name, value in bound_values.arguments.items():
+                if name in bound_types:
+                    if not isinstance(value, bound_types[name]):
+                        raise TypeError('Argument {} must be {}'.format(name, bound_types[name]))
+            return func(*args, **kwargs)
+        return wrapper
+    return decorate
 
 class StateMachine:
     def __init__(self): 
@@ -129,6 +118,11 @@ class StateMachine:
 
         return "\n".join(res)
 
+#Used for parameter type detection unit test
+@param_check(int,str,list)
+def param_check_test(a,b,c):
+    pass
+
 if __name__ == "__main__":
     clk1 = 3
     clk2 = 1
@@ -157,56 +151,56 @@ if __name__ == "__main__":
     dot=graphviz.Source(dot_graph)
     dot.view(filename='rgb_light_state_diagram')
 
-    # m = StateMachine()
-    # m.add_state("s0","Initial state")
-    # m.add_state("s1","Sequence 1 detected")
-    # m.add_state("s2","Sequence 11 detected")
-    # m.add_state("s3","Sequence 110 detected")
-    # m.add_state("s4","Sequence 1101 detected")
-    # m.set_start("s0")
-    # m.add_transition("s0",lambda a: "s1" if a==1 else "s0")
-    # m.add_transition("s1",lambda a: "s2" if a==1 else "s0")
-    # m.add_transition("s2",lambda a: "s3" if a==0 else "s2")
-    # m.add_transition("s3",lambda a: "s4" if a==1 else "s0")
-    # m.add_transition("s4",lambda a: "s1" if a==1 else "s0")
+#     # m = StateMachine()
+#     # m.add_state("s0","Initial state")
+#     # m.add_state("s1","Sequence 1 detected")
+#     # m.add_state("s2","Sequence 11 detected")
+#     # m.add_state("s3","Sequence 110 detected")
+#     # m.add_state("s4","Sequence 1101 detected")
+#     # m.set_start("s0")
+#     # m.add_transition("s0",lambda a: "s1" if a==1 else "s0")
+#     # m.add_transition("s1",lambda a: "s2" if a==1 else "s0")
+#     # m.add_transition("s2",lambda a: "s3" if a==0 else "s2")
+#     # m.add_transition("s3",lambda a: "s4" if a==1 else "s0")
+#     # m.add_transition("s4",lambda a: "s1" if a==1 else "s0")
 
-    # m.run_by_event([1,0,1,0,1,1,0,1])
-    # print(m.transition_history)
+#     # m.run_by_event([1,0,1,0,1,1,0,1])
+#     # print(m.transition_history)
 
-    # dot=m.visualize_event([0,1])
-    # f= open('fsm_sequence_detection.dot','w') 
-    # f.write(dot)
-    # f.close()
+#     # dot=m.visualize_event([0,1])
+#     # f= open('fsm_sequence_detection.dot','w') 
+#     # f.write(dot)
+#     # f.close()
 
-    # with open("fsm_sequence_detection.dot") as f:
-    #     dot_graph = f.read()
-    # dot=graphviz.Source(dot_graph)
-    # dot.view(filename='fsm_sequence_detection_diagram')
+#     # with open("fsm_sequence_detection.dot") as f:
+#     #     dot_graph = f.read()
+#     # dot=graphviz.Source(dot_graph)
+#     # dot.view(filename='fsm_sequence_detection_diagram')
 
-    # m = StateMachine()
-    # m.add_state("StateStopping","Initial state")
-    # m.add_state("StateGoingUp","Sequence 1 detected")
-    # m.add_state("StateGoingDown","Sequence 11 detected")
-    # m.add_state("StateOpened","Sequence 110 detected")
-    # m.add_state("StateWarning","Sequence 1101 detected")
+#     # m = StateMachine()
+#     # m.add_state("StateStopping","Initial state")
+#     # m.add_state("StateGoingUp","Sequence 1 detected")
+#     # m.add_state("StateGoingDown","Sequence 11 detected")
+#     # m.add_state("StateOpened","Sequence 110 detected")
+#     # m.add_state("StateWarning","Sequence 1101 detected")
 
-    # m.set_start("StateStopping")
+#     # m.set_start("StateStopping")
 
-    # m.add_transition("StateStopping",lambda a: "StateOpened" if a=='EVENT_OPEN' else ('StateGoingUp' if a=='EVENT_UP' else ('StateGoingDown' if a=='EVENT_DOWN' else 'StateStopping' )))
-    # m.add_transition("StateOpened",lambda a: "StateStopping" if a=='EVENT_CLOSE' else ('StateWarning' if a=='EVENT_WARN' else 'StateOpened'))
-    # m.add_transition("StateGoingUp",lambda a: "StateStopping" if a=='EVENT_STOP' else 'StateGoingUp')
-    # m.add_transition("StateGoingDown",lambda a: "StateStopping" if a=='EVENT_STOP' else "StateGoingDown")
-    # m.add_transition("StateWarning",lambda a: "StateOpened" if a=='EVENT_DELWARN' else "StateWarning")
+#     # m.add_transition("StateStopping",lambda a: "StateOpened" if a=='EVENT_OPEN' else ('StateGoingUp' if a=='EVENT_UP' else ('StateGoingDown' if a=='EVENT_DOWN' else 'StateStopping' )))
+#     # m.add_transition("StateOpened",lambda a: "StateStopping" if a=='EVENT_CLOSE' else ('StateWarning' if a=='EVENT_WARN' else 'StateOpened'))
+#     # m.add_transition("StateGoingUp",lambda a: "StateStopping" if a=='EVENT_STOP' else 'StateGoingUp')
+#     # m.add_transition("StateGoingDown",lambda a: "StateStopping" if a=='EVENT_STOP' else "StateGoingDown")
+#     # m.add_transition("StateWarning",lambda a: "StateOpened" if a=='EVENT_DELWARN' else "StateWarning")
 
-    # m.run_by_event(['EVENT_OPEN','EVENT_CLOSE','EVENT_UP','EVENT_STOP','EVENT_OPEN','EVENT_WARN','EVENT_DELWARN'])
-    # print(m.transition_history)
+#     # m.run_by_event(['EVENT_OPEN','EVENT_CLOSE','EVENT_UP','EVENT_STOP','EVENT_OPEN','EVENT_WARN','EVENT_DELWARN'])
+#     # print(m.transition_history)
 
-    # dot=m.visualize_event(['EVENT_UP','EVENT_DOWN','EVENT_STOP','EVENT_OPEN','EVENT_CLOSE','EVENT_WARN','EVENT_DELWARN'])
-    # f= open('fsm_elevator.dot','w') 
-    # f.write(dot)
-    # f.close()
+#     # dot=m.visualize_event(['EVENT_UP','EVENT_DOWN','EVENT_STOP','EVENT_OPEN','EVENT_CLOSE','EVENT_WARN','EVENT_DELWARN'])
+#     # f= open('fsm_elevator.dot','w') 
+#     # f.write(dot)
+#     # f.close()
 
-    # with open("fsm_elevator.dot") as f:
-    #     dot_graph = f.read()
-    # dot=graphviz.Source(dot_graph)
-    # dot.view(filename='fsm_elevator_diagram')
+#     # with open("fsm_elevator.dot") as f:
+#     #     dot_graph = f.read()
+#     # dot=graphviz.Source(dot_graph)
+#     # dot.view(filename='fsm_elevator_diagram')

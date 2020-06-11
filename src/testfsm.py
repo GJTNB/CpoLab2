@@ -43,17 +43,6 @@ class FsmTest(unittest.TestCase):
         self.assertEqual(m.handlers['s2'],transition_function_3)
         self.assertEqual(m.handlers['s3'],transition_function_4)
 
-    #The parameters type of param_check_test(a,b,c) should be (int,str,list)
-    def test_param_check(self):
-        A=param_check_test(1,23,4)
-        self.assertEqual([True,False,False],A)
-        A=param_check_test(1,'111',4)
-        self.assertEqual([True,True,False],A)
-        A=param_check_test("1",23,4)
-        self.assertEqual([False,False,False],A)
-        A=param_check_test(1,"1",[1,2,3])
-        self.assertEqual([True,True,True],A)
-
     #Test traffic lights, green light time is 4 seconds, yellow light time is 2 seconds, red light time is 6 seconds,clk 15
     def test_rbg_right_fsm_run_1(self):
         clk1 = 4
@@ -239,7 +228,12 @@ class FsmTest(unittest.TestCase):
             (7, 'Input event:EVENT_DELWARN', 'StateWarning', 'StateOpened')
         ])
 
-
+    #The parameters type of param_check_test(a,b,c) should be (int,str,list)
+    def test_param_check(self):
+        m = StateMachine()
+        self.assertRaises(TypeError,m.add_state,1,"test")
+        self.assertRaises(TypeError,m.set_start,1)
+        self.assertRaises(TypeError,param_check_test,1,"test",1)
 
 if __name__ == '__main__':
     unittest.main()
